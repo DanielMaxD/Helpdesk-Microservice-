@@ -22,7 +22,7 @@ WORKDIR /app
 
 # curl is required for the container HEALTHCHECK below (hits actuator/health).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl unzip \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/target/*.jar app.jar
