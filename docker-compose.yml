@@ -1,0 +1,146 @@
+services:
+  user-db:
+    image: postgres:16
+    container_name: helpdesk-user-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-helpdesk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-helpdesk}
+      POSTGRES_DB: user_db
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+    ports:
+      # Exposed on the host only so you can poke at it with psql/a GUI client
+      # during a demo. Not required by any other container (they use the
+      # internal `user-db:5432` hostname). Safe to drop for a locked-down
+      # deployment.
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-helpdesk} -d user_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - helpdesk-net
+
+  ticket-db:
+    image: postgres:16
+    container_name: helpdesk-ticket-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-helpdesk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-helpdesk}
+      POSTGRES_DB: ticket_db
+    volumes:
+      - ticket_db_data:/var/lib/postgresql/data
+    ports:
+      # Host port 5433 (not 5432) so it doesn't collide with user-db above —
+      # matches the convention used in backend/ticket-service/README_RUN.md.
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-helpdesk} -d ticket_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - helpdesk-net
+
+  user-service:
+    build:
+      context: ./backend/user-service
+    container_name: helpdesk-user-service
+    restart: unless-stopped
+    depends_on:
+      user-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://user-db:5432/user_db
+      POSTGRES_USER: ${POSTGRES_USER:-helpdesk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-helpdesk}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your .env file — see .env.example}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+    networks:
+      - helpdesk-net
+
+  ticket-service:
+    build:
+      context: ./backend/ticket-service
+    container_name: helpdesk-ticket-service
+    restart: unless-stopped
+    depends_on:
+      ticket-db:
+        condition: service_healthy
+      # Gated on user-service being *healthy*, not just started: ticket-service
+      # logs into user-service at boot to seed demo tickets against real user
+      # UUIDs, and calls it again on every agent-assignment. It degrades
+      # gracefully if user-service is briefly unreachable later (skips
+      # seeding, logs a warning), but waiting for healthy here means a first
+      # `docker compose up` reliably seeds demo tickets without a manual restart.
+      user-service:
+        condition: service_healthy
+    environment:
+      # Internal Docker hostname + internal container port (always 5432,
+      # regardless of the 5433 HOST port mapping on ticket-db above — that
+      # 5433 only matters if you're reaching ticket-db from outside the
+      # helpdesk-net Docker network, e.g. a local `mvnw spring-boot:run`).
+      # Containers on the same network talk to each other via container
+      # ports directly, never through the host port mapping.
+      DATABASE_URL: jdbc:postgresql://ticket-db:5432/ticket_db
+      POSTGRES_USER: ${POSTGRES_USER:-helpdesk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-helpdesk}
+      # Must be byte-for-byte identical to user-service's JWT_SECRET above —
+      # ticket-service only validates tokens, it never issues them.
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your .env file — see .env.example}
+      # Internal Docker network hostname — this is server-to-server traffic
+      # between containers, unrelated to the browser-facing VITE_* URLs below.
+      USER_SERVICE_URL: http://user-service:8081
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+    networks:
+      - helpdesk-net
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the static JS bundle at build time (Vite behavior) — see
+        # the long comment in frontend/Dockerfile and .env.example. Must be
+        # URLs reachable from the BROWSER (host-published ports), not the
+        # internal `user-service`/`ticket-service` Docker hostnames above.
+        VITE_USER_SERVICE_URL: ${VITE_USER_SERVICE_URL:-http://localhost:8081}
+        VITE_TICKET_SERVICE_URL: ${VITE_TICKET_SERVICE_URL:-http://localhost:8082}
+    container_name: helpdesk-frontend
+    restart: unless-stopped
+    depends_on:
+      user-service:
+        condition: service_healthy
+      ticket-service:
+        condition: service_healthy
+    ports:
+      - "5173:80"
+    networks:
+      - helpdesk-net
+
+networks:
+  helpdesk-net:
+    name: helpdesk-net
+
+volumes:
+  user_db_data:
+  ticket_db_data:

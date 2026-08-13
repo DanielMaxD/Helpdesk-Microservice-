@@ -1,0 +1,52 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: user-service
+  datasource:
+    # Local/standalone fallback only (used when DATABASE_URL is not set).
+    # user_db's Postgres runs on host port 5432 in every local/standalone and
+    # Docker Compose setup this project documents — no port conflict here,
+    # unlike ticket-service (see the comment in its application.yml).
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/user_db}
+    username: ${POSTGRES_USER:helpdesk}
+    password: ${POSTGRES_PASSWORD:helpdesk}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+jwt:
+  secret: ${JWT_SECRET:this-is-a-local-development-only-secret-key-please-change-1234567890}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+app:
+  cors:
+    allowed-origins: ${FRONTEND_URL:http://localhost:5173}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    com.helpdesk: INFO

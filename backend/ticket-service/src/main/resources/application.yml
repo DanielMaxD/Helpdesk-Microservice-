@@ -1,0 +1,65 @@
+server:
+  port: ${SERVER_PORT:8082}
+
+spring:
+  application:
+    name: ticket-service
+  datasource:
+    # Local/standalone fallback only (used when DATABASE_URL is not set — i.e.
+    # `mvnw spring-boot:run` outside Docker). Deliberately 5433, not 5432:
+    # ticket_db's Postgres runs on host port 5433 in every local/standalone
+    # setup this project documents (see README_RUN.md's `docker run -p
+    # 5433:5432 ...` step) so it doesn't collide with user_db's Postgres on
+    # 5432. Docker Compose never falls through to this default — it sets
+    # DATABASE_URL explicitly to the internal `ticket-db:5432` Docker
+    # hostname/port in docker-compose.yml, which always takes precedence.
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/ticket_db}
+    username: ${POSTGRES_USER:helpdesk}
+    password: ${POSTGRES_PASSWORD:helpdesk}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+# IMPORTANT: jwt.secret MUST be identical to the value configured for user-service.
+# ticket-service never issues tokens - it only validates tokens issued by user-service.
+# The local default below exists ONLY for standalone `mvn spring-boot:run` development.
+# docker-compose and any production deployment must set JWT_SECRET explicitly via
+# environment variables / .env - never rely on this fallback outside local dev.
+jwt:
+  secret: ${JWT_SECRET:this-is-a-local-development-only-secret-key-please-change-1234567890}
+
+# Base URL of user-service, used for server-to-server verification calls
+# (e.g. confirming a user exists, has role AGENT, and is active before assignment).
+user-service:
+  base-url: ${USER_SERVICE_URL:http://localhost:8081}
+
+app:
+  cors:
+    allowed-origins: ${FRONTEND_URL:http://localhost:5173}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    com.helpdesk: INFO
