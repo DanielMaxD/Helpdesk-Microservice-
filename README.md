@@ -58,7 +58,7 @@ docker compose up --build
 ```
 
 Then open `http://localhost:5173`. Full details, troubleshooting, and
-production notes: **[`DEPLOYMENT.md`](./DEPLOYMENT.md)**.
+production notes: **[`DEPLOYMENT.md`](./DEPLOYMENT.md)**.A
 
 ### Option B — Run each piece manually (best for active development)
 
