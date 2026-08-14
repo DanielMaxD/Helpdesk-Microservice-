@@ -7,6 +7,10 @@
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends unzip \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy wrapper + POM first so dependency resolution is cached in its own
 # Docker layer and only re-runs when pom.xml actually changes.
 COPY .mvn/ .mvn/
