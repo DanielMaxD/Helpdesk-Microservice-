@@ -93,6 +93,29 @@ The dashboard exposes the resulting statistics for the current user's role.
 | USER | Create tickets, view own tickets, comment, resolve own tickets |
 | AGENT | View assigned tickets, update status, comment |
 | ADMIN | View all tickets, assign agents, manage users, view system statistics |
+
+## Screenshots
+
+### Dashboard
+
+The dashboard changes based on the signed-in user's role and shows ticket
+statistics and SLA information.
+
+![Admin dashboard](docs/screenshot/dashboard.png)
+
+### Ticket details
+
+Tickets have a defined lifecycle, SLA tracking, assignment, descriptions, and
+comments.
+
+![Ticket details](docs/screenshot/ticketdetail.png)
+
+### User management
+
+Administrators can manage users and change their roles between `USER`, `AGENT`,
+and `ADMIN`.
+
+![User management](docs/screenshot/userspage.png)
 ## Quick start
 
 ### Option A — Docker Compose (fastest, whole stack)
