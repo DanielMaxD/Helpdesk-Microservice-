@@ -125,9 +125,11 @@ Clone the repository and start the complete stack:
 ```bash
 cp .env.example .env
 ```
-Set JWT_SECRET in .env, then run:
+Set `JWT_SECRET` in `.env`, then run:
 
+```bash
 docker compose up --build
+```
 
 Once the containers are running:
 
@@ -137,13 +139,6 @@ Ticket service: http://localhost:8082
 
 Docker Compose starts the frontend, both Spring Boot services, and their PostgreSQL databases.
 
-Option B — Manual development
-
-Run the frontend and backend services separately if you want to develop without Docker.
-
-The frontend runs on port 5173, user-service on 8081, and ticket-service on 8082.
-Then open `http://localhost:5173`. Full details, troubleshooting, and
-production notes: **[`DEPLOYMENT.md`](./DEPLOYMENT.md)**.A
 
 ### Option B — Run each piece manually (best for active development)
 
@@ -172,45 +167,48 @@ to the internal-hostname column.
 
 ## Demo accounts
 
-All seeded accounts use the password `Password123!`:
+Use these seeded accounts to explore the different role-based workflows.
 
-| Email                | Role  |
-|-----------------------|-------|
-| admin@helpdesk.dev    | ADMIN |
-| agent1@helpdesk.dev   | AGENT |
-| agent2@helpdesk.dev   | AGENT |
-| user1@helpdesk.dev    | USER  |
-| user2@helpdesk.dev    | USER  |
-| user3@helpdesk.dev    | USER  |
+| Email | Role |
+|---|---|
+| `admin@helpdesk.dev` | ADMIN |
+| `agent1@helpdesk.dev` | AGENT |
+| `agent2@helpdesk.dev` | AGENT |
+| `user1@helpdesk.dev` | USER |
+| `user2@helpdesk.dev` | USER |
+| `user3@helpdesk.dev` | USER |
 
-user-service seeds these on first boot; ticket-service then seeds ~12 demo
-tickets against their real UUIDs (it needs user-service reachable to do so).
+**Password for all demo accounts:** `Password123!`
 
+These accounts are seeded by `user-service` on first boot. `ticket-service` then creates demo tickets using their user IDs.
 ## What each role can do
 
-| | USER | AGENT | ADMIN |
-|---|---|---|---|
-| Create tickets | ✅ | – | – |
-| View tickets | own only | assigned only | all |
-| Comment | own tickets | assigned tickets | all tickets |
-| Advance status | resolved → closed, own tickets | assigned tickets | any ticket |
-| Assign agents | – | – | ✅ |
-| Manage users | – | – | ✅ |
-| View statistics | own scope | own scope | all |
+| Capability      | USER                            | AGENT            | ADMIN       |
+| --------------- | ------------------------------- | ---------------- | ----------- |
+| Create tickets  | Own                             | –                | –           |
+| View tickets    | Own tickets                     | Assigned tickets | All tickets |
+| Comment         | Own tickets                     | Assigned tickets | All tickets |
+| Update status   | Resolve own tickets, then close | Assigned tickets | Any ticket  |
+| Assign agents   | –                               | –                | Yes         |
+| Manage users    | –                               | –                | Yes         |
+| View statistics | Own scope                       | Own scope        | All         |
 
-The frontend hides actions that don't apply to the current role/ticket
-state, but this is UX only — every rule above is enforced again in the
-backend service layer, which is the actual authority.
+The frontend hides actions that are not available for the current role or ticket state, but authorization is enforced by the backend service layer.
 
 ## API documentation
 
-- user-service: `http://localhost:8081/swagger-ui.html`
-- ticket-service: `http://localhost:8082/swagger-ui.html`
+Both backend services expose their REST APIs through Swagger UI:
+
+* `user-service`: `http://localhost:8081/swagger-ui.html`
+* `ticket-service`: `http://localhost:8082/swagger-ui.html`
 
 ## Tests
 
-Both backend services have JUnit 5 / Mockito unit tests (service layer,
-JWT handling, SLA calculation) — no integration/Testcontainers tests yet.
+Both backend services include JUnit 5 / Mockito unit tests covering service-layer logic, JWT handling, and SLA calculation.
+
+Integration/Testcontainers tests are not currently included.
+
+Run the test suites with:
 
 ```bash
 cd backend/user-service && ./mvnw test
@@ -219,26 +217,27 @@ cd backend/ticket-service && ./mvnw test
 
 ## Project structure
 
-```
+```text
 helpdesk/
 ├── docker-compose.yml
 ├── .env.example
 ├── DEPLOYMENT.md
-├── summary.md              # detailed running log of everything built
+├── summary.md
 ├── PROJECT_STATUS.md
 ├── backend/
-│   ├── user-service/       # auth, users, agents — port 8081
-│   └── ticket-service/     # tickets, comments, notifications, SLA — port 8082
-└── frontend/                # React app — port 5173 (5173 dev / served via nginx in Docker)
+│   ├── user-service/       # authentication, users, roles
+│   └── ticket-service/     # tickets, comments, notifications, SLA
+└── frontend/               # React frontend
 ```
 
-## Known constraints (do not change without good reason)
+The backend services are independently structured Spring Boot applications, while the frontend is a separate React application.
 
-- SLA state is computed on read, not by a background worker.
-- Ticket status transitions are strict forward-only
-  (`OPEN → IN_PROGRESS → RESOLVED → CLOSED`); `CLOSED` tickets are immutable.
-- `user-service` is the only JWT issuer; JWT claim names (`sub`, `role`,
-  `email`) must stay compatible between both services.
+## Known constraints
 
-See [`PROJECT_STATUS.md`](./PROJECT_STATUS.md) for the complete list and
-current remaining tasks.
+* SLA state is computed when ticket data is requested; there is no background worker.
+* Ticket status transitions are strict and forward-only:
+  `OPEN → IN_PROGRESS → RESOLVED → CLOSED`.
+* `CLOSED` tickets are immutable.
+* `user-service` is the only JWT issuer. JWT claims (`sub`, `role`, `email`) must remain compatible between both services.
+
+See [`PROJECT_STATUS.md`](./PROJECT_STATUS.md) for the complete list and current remaining tasks.
