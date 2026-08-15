@@ -1,42 +1,32 @@
 # HelpDesk
 
-A ticket management system built as two independent Spring Boot
-microservices with their own databases, plus a React/TypeScript frontend.
-Built as a demo-quality but genuinely functional full-stack project — every
-frontend screen calls a real backend endpoint; nothing is mocked.
+A full-stack support ticket system built with React, Spring Boot, and PostgreSQL.
+
+HelpDesk separates authentication and user management from ticket management
+using two independent Spring Boot services, each with its own PostgreSQL database.
+
+[Live Demo](https://frontend-production-b347.up.railway.app)
+
+![HelpDesk Dashboard](docs/screenshots/dashboard.png)
+
+## What it does
+
+HelpDesk supports three roles:
+
+- **Users** create and manage their own support tickets.
+- **Agents** work on tickets assigned to them.
+- **Admins** manage users, assign tickets, and view system-wide statistics.
+
+Tickets follow a fixed lifecycle:
+
+`OPEN → IN_PROGRESS → RESOLVED → CLOSED`
+
+Each ticket also has an SLA based on its priority, with the current SLA state
+calculated by the backend.
 
 ## Architecture
 
-```
-┌─────────────────────┐
-│   frontend (5173)   │  React + TS + Vite + Tailwind
-│   nginx in Docker    │
-└──────────┬───────────┘
-           │ REST + JWT
-           ▼
-┌──────────────────────┐        ┌──────────────────────┐
-│  user-service (8081) │◄───────┤ ticket-service (8082) │
-│  issues + validates  │  REST  │  validates JWTs only  │
-│  JWTs                │ (agent │  calls user-service to│
-│                       │ verify)│  verify agents on     │
-│                       │        │  assignment           │
-└──────────┬────────────┘        └──────────┬────────────┘
-           │                                 │
-           ▼                                 ▼
-     ┌───────────┐                    ┌─────────────┐
-     │  user_db  │                    │  ticket_db  │
-     │ (Postgres)│                    │ (Postgres)  │
-     └───────────┘                    └─────────────┘
-```
-
-- **No shared database, no message queue.** The two services are fully
-  independent aside from the JWT contract and the one synchronous
-  user-verification call ticket-service makes on agent assignment.
-- **user-service** is the sole JWT issuer. **ticket-service** only validates
-  tokens — both must be configured with the identical `JWT_SECRET`.
-- Full details, completed work, and current constraints:
-  [`summary.md`](./summary.md) and [`PROJECT_STATUS.md`](./PROJECT_STATUS.md).
-
+![HelpDesk Architecture](docs/screenshots/architecture.png)
 ## Tech stack
 
 | Layer     | Stack                                                                 |
