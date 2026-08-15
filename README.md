@@ -26,17 +26,33 @@ calculated by the backend.
 
 ## Architecture
 
+HelpDesk is split into two Spring Boot services with separate PostgreSQL
+databases.
+
 ![HelpDesk Architecture](docs/screenshot/Architecture.png)
+
+### Why two services?
+
+- **user-service** owns authentication, users, roles, and JWT issuance.
+- **ticket-service** owns tickets, comments, notifications, SLA tracking, and assignment.
+- Each service owns its own database; neither service reads the other's database directly.
+- `ticket-service` makes a synchronous call to `user-service` when an agent needs to be verified for ticket assignment.
+- Both services use the same JWT secret so `ticket-service` can validate tokens issued by `user-service`.
+
+This keeps user data and ticket data under separate service boundaries while
+keeping the communication between services explicit.
+
 ## Tech stack
 
-| Layer     | Stack                                                                 |
-|-----------|------------------------------------------------------------------------|
-| Frontend  | React 18, TypeScript (strict), Vite, Tailwind CSS, React Router v6, Axios |
-| Backend   | Spring Boot 3.3.4, Java 21, Spring Security (custom JWT filter), Spring Data JPA |
-| Database  | PostgreSQL 16 (one instance per service)                              |
-| Auth      | JWT (jjwt 0.12.6, HS256)                                              |
-| Docs      | springdoc-openapi (Swagger UI on both services)                       |
-
+| Layer | Technologies |
+|---|---|
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS, React Router, Axios |
+| Backend | Java 21, Spring Boot 3.3.4, Spring Security, Spring Data JPA |
+| Database | PostgreSQL 16 |
+| Authentication | JWT (HS256), JJWT |
+| Deployment | Docker, Docker Compose, Nginx |
+| API documentation | OpenAPI / Swagger UI |
+| Testing | JUnit 5, Mockito |
 ## Quick start
 
 ### Option A — Docker Compose (fastest, whole stack)
