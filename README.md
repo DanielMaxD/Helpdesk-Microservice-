@@ -118,14 +118,30 @@ and `ADMIN`.
 ![User management](docs/screenshot/userspage.png)
 ## Quick start
 
-### Option A — Docker Compose (fastest, whole stack)
+### Option A — Docker Compose
+
+Clone the repository and start the complete stack:
 
 ```bash
 cp .env.example .env
-# edit .env and set JWT_SECRET (see comments in the file)
-docker compose up --build
 ```
+Set JWT_SECRET in .env, then run:
 
+docker compose up --build
+
+Once the containers are running:
+
+Frontend: http://localhost:5173
+User service: http://localhost:8081
+Ticket service: http://localhost:8082
+
+Docker Compose starts the frontend, both Spring Boot services, and their PostgreSQL databases.
+
+Option B — Manual development
+
+Run the frontend and backend services separately if you want to develop without Docker.
+
+The frontend runs on port 5173, user-service on 8081, and ticket-service on 8082.
 Then open `http://localhost:5173`. Full details, troubleshooting, and
 production notes: **[`DEPLOYMENT.md`](./DEPLOYMENT.md)**.A
 
