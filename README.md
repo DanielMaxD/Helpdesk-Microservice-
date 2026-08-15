@@ -222,7 +222,6 @@ helpdesk/
 ├── docker-compose.yml
 ├── .env.example
 ├── DEPLOYMENT.md
-├── summary.md
 ├── PROJECT_STATUS.md
 ├── backend/
 │   ├── user-service/       # authentication, users, roles
