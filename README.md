@@ -224,12 +224,14 @@ helpdesk/
 ├── DEPLOYMENT.md
 ├── PROJECT_STATUS.md
 ├── backend/
-│   ├── user-service/       # authentication, users, roles
-│   └── ticket-service/     # tickets, comments, notifications, SLA
-└── frontend/               # React frontend
+│   ├── user-service/       # Spring Boot service for authentication, users, and roles
+│   └── ticket-service/     # Spring Boot service for tickets, comments, notifications, and SLA
+├── frontend/               # React + TypeScript frontend
+└── docs/
+    └── screenshot/         # Project screenshots and architecture diagram
 ```
 
-The backend services are independently structured Spring Boot applications, while the frontend is a separate React application.
+The backend consists of two independent Spring Boot services, while the frontend is a separate React application. Each backend service has its own PostgreSQL database.
 
 ## Known constraints
 
