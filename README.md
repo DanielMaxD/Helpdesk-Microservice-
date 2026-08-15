@@ -7,7 +7,7 @@ using two independent Spring Boot services, each with its own PostgreSQL databas
 
 [Live Demo](https://frontend-production-b347.up.railway.app)
 
-![HelpDesk Dashboard](docs/screenshots/dashboard.png)
+![HelpDesk Dashboard](docs/screenshot/dashboard.png)
 
 ## What it does
 
@@ -26,7 +26,7 @@ calculated by the backend.
 
 ## Architecture
 
-![HelpDesk Architecture](docs/screenshots/architecture.png)
+![HelpDesk Architecture](docs/screenshot/Architecture.png)
 ## Tech stack
 
 | Layer     | Stack                                                                 |
