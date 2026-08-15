@@ -1,25 +1,19 @@
-# Deployment (Docker Compose)
+# Deployment — Docker Compose
 
-This runs the entire stack — both Postgres databases, both backend
-services, and the frontend — with a single command. This is the fastest way
-to see the whole app running end to end.
+This runs the complete HelpDesk stack with Docker Compose:
 
-If you'd rather run each piece manually (e.g. for active backend
-development with hot reload), use the three `README_RUN.md` files instead —
-see the root `README.md` for links. The two approaches are independent; you
-don't need Docker to develop locally.
+* PostgreSQL database for `user-service`
+* PostgreSQL database for `ticket-service`
+* `user-service`
+* `ticket-service`
+* React frontend served by Nginx
 
-**Verification status:** `docker-compose.yml` and both Dockerfiles have been
-validated for syntax (YAML parses cleanly; `Dockerfile` steps mirror the
-exact commands already verified working in each `README_RUN.md`), but a full
-`docker compose up --build` has **not** been executed in this environment
-(no Docker daemon / registry access here). Please run it once locally and
-let me know if anything needs adjusting.
+For manual development without Docker, see the `README_RUN.md` files in each service directory.
 
 ## Prerequisites
 
-- Docker Desktop (or Docker Engine + Compose plugin) installed and running
-- Ports `5173`, `8081`, `8082`, `5432`, `5433` free on your machine
+* Docker Desktop or Docker Engine with the Compose plugin
+* Ports `5173`, `8081`, `8082`, `5432`, and `5433` available on the host
 
 ## 1. Configure environment variables
 
@@ -28,140 +22,192 @@ From the project root:
 ```bash
 cp .env.example .env
 ```
+
+On Windows PowerShell:
+
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Open `.env` and set a real `JWT_SECRET` — this one has no fallback in
-`docker-compose.yml` on purpose, so the stack refuses to start until you've
-made a conscious choice instead of silently reusing the well-known
-"local development only" default baked into the source. Generate one with:
+Open `.env` and set a strong `JWT_SECRET`.
+
+A secret can be generated with:
 
 ```bash
 openssl rand -base64 48
 ```
 
-Everything else in `.env.example` already has a working local-dev default.
+The remaining values in `.env.example` provide local development defaults.
 
-## 2. Build and start everything
+## 2. Build and start the stack
 
 ```bash
 docker compose up --build
 ```
 
-Add `-d` to run in the background. First run will take a few minutes —
-Maven needs to download dependencies for both Java services and npm needs to
-install frontend packages, all inside the build.
+Use `-d` to run the containers in the background.
 
-What happens, in order:
-1. `user-db` and `ticket-db` start and report healthy (`pg_isready`)
-2. `user-service` starts once `user-db` is healthy, then seeds 6 demo
-   accounts on first boot
-3. `ticket-service` waits for **both** `ticket-db` and `user-service` to be
-   healthy — it logs into user-service at boot to fetch real user UUIDs and
-   seed ~12 demo tickets against them, so it needs user-service to actually
-   be answering requests first, not just started
-4. `frontend` waits for both backend services to be healthy, then starts
+On the first build, Maven downloads the backend dependencies and npm installs the frontend dependencies inside the Docker build.
 
-## 3. Open the app
+### Startup order
 
-```
+Docker Compose starts the services in dependency order:
+
+1. `user-db` and `ticket-db` start and report healthy.
+2. `user-service` starts after `user-db` is healthy and seeds the demo accounts on first boot.
+3. `ticket-service` starts after `ticket-db` and `user-service` are healthy, then seeds demo tickets using the users created by `user-service`.
+4. The frontend starts after both backend services are healthy.
+
+## 3. Open the application
+
+Frontend:
+
+```text
 http://localhost:5173
 ```
 
-Sign in with any seeded demo account (password `Password123!` for all):
+The seeded demo accounts use the password `Password123!`.
 
-| Email               | Role  |
-|---------------------|-------|
-| admin@helpdesk.dev  | ADMIN |
-| agent1@helpdesk.dev | AGENT |
-| user1@helpdesk.dev  | USER  |
+| Email                 | Role  |
+| --------------------- | ----- |
+| `admin@helpdesk.dev`  | ADMIN |
+| `agent1@helpdesk.dev` | AGENT |
+| `user1@helpdesk.dev`  | USER  |
 
-Swagger UI for each backend: `http://localhost:8081/swagger-ui.html` and
-`http://localhost:8082/swagger-ui.html`.
+Swagger UI:
+
+* `user-service`: `http://localhost:8081/swagger-ui.html`
+* `ticket-service`: `http://localhost:8082/swagger-ui.html`
 
 ## Useful commands
 
+Follow all service logs:
+
 ```bash
-docker compose logs -f                  # tail all logs
-docker compose logs -f ticket-service   # tail just one service
-docker compose ps                       # see health status of everything
-docker compose down                     # stop everything, keep DB data
-docker compose down -v                  # stop everything AND wipe DB volumes
+docker compose logs -f
 ```
 
-## Important: the frontend's API URLs are baked in at build time
+Follow a specific service:
 
-Vite inlines `VITE_USER_SERVICE_URL` / `VITE_TICKET_SERVICE_URL` into the
-static JS bundle when the image is **built**, not when the container starts.
-They're passed as Docker build `args` (see `docker-compose.yml` →
-`frontend.build.args` and `.env.example`), not as runtime environment
-variables, because setting them only at runtime would have no effect on
-already-built static files.
+```bash
+docker compose logs -f ticket-service
+```
 
-If you change `VITE_USER_SERVICE_URL` or `VITE_TICKET_SERVICE_URL` in `.env`,
-a plain restart won't pick it up — you need to rebuild that image:
+Check container status:
+
+```bash
+docker compose ps
+```
+
+Stop the stack while keeping database volumes:
+
+```bash
+docker compose down
+```
+
+Stop the stack and remove database volumes:
+
+```bash
+docker compose down -v
+```
+
+## Frontend API configuration
+
+The frontend API URLs are embedded into the Vite production build.
+
+`VITE_USER_SERVICE_URL` and `VITE_TICKET_SERVICE_URL` are passed as Docker build arguments through `docker-compose.yml`. Changing them after the frontend image has been built does not change the already-generated JavaScript bundle.
+
+If these values are changed in `.env`, rebuild the frontend image:
 
 ```bash
 docker compose up --build frontend
 ```
 
-These two values should be whatever your **browser** will use to reach the
-backends (typically `http://localhost:8081` / `http://localhost:8082`), not
-the internal Docker service names (`user-service` / `ticket-service`) that
-the containers use to talk to each other — the browser can't resolve those.
+The URLs must be reachable by the user's browser. For local development they normally point to:
+
+```text
+http://localhost:8081
+http://localhost:8082
+```
+
+They should not use the internal Docker service names because those names are only resolvable between containers.
 
 ## Troubleshooting
 
-**Port already in use.** Something else on your machine is using `5173`,
-`8081`, `8082`, `5432`, or `5433`. Either stop that process or change the
-host-side port in `docker-compose.yml` (the left number in `"host:container"`).
+### Port already in use
 
-**`ticket-service` never becomes healthy / demo tickets aren't seeded.**
-Check its logs: `docker compose logs ticket-service`. It needs `user-service`
-to be answering `/api/auth/login` at boot to fetch real UUIDs — if
-`user-service`'s healthcheck is passing but login is somehow still failing
-(e.g. corrupted `user-db` volume from a previous run), try
-`docker compose down -v` for a completely clean start.
+If one of ports `5173`, `8081`, `8082`, `5432`, or `5433` is already occupied, stop the conflicting process or change the corresponding host-side port in `docker-compose.yml`.
 
-**Logging in works but every ticket-service call returns 401.** `JWT_SECRET`
-differs between `user-service` and `ticket-service`. In this compose setup
-both read the same `.env` value, so this would only happen if you edited one
-service's environment block directly — keep them identical.
+### `ticket-service` does not become healthy or demo tickets are not seeded
 
-**Frontend loads but API calls fail / CORS errors in the browser console.**
-Check that `FRONTEND_URL` in `.env` matches the URL you're actually loading
-the frontend from. If you changed the frontend's host port from `5173`,
-update `FRONTEND_URL` to match and restart the backend services
-(`docker compose up -d user-service ticket-service`).
+Check the service logs:
 
-**Running a backend service locally (outside Docker) against the Postgres
-containers started by `docker compose up`.** This works, but mind the host
-ports: `user-db` is published on `localhost:5432`, `ticket-db` on
-`localhost:5433` (see the `ports:` mapping for each in `docker-compose.yml`).
-`user-service`'s local fallback already defaults to 5432; `ticket-service`'s
-already defaults to 5433 — matching this compose file exactly — so
-`./mvnw spring-boot:run` / `.\mvnw.cmd spring-boot:run` for either service
-should work with no `DATABASE_URL` needed, as long as you didn't change
-those port mappings. Full detail in each service's own `README_RUN.md`.
-Symptom of getting this wrong: `FATAL: database "ticket_db" does not exist`
-(ticket-service connected to user_db's Postgres on 5432 instead of ticket_db's
-on 5433, or vice versa).
+```bash
+docker compose logs ticket-service
+```
 
-## Notes for a real (non-demo) production deployment
+`ticket-service` requires `user-service` to be available during startup so it can retrieve the seeded users and create demo tickets.
 
-This compose setup is tuned for a local or demo deployment. Before using it
-for anything real, at minimum:
+If the database volumes contain stale or corrupted data, reset the stack:
 
-- Set a strong, unique `JWT_SECRET` (never the source's dev fallback)
-- Put the frontend behind HTTPS (a reverse proxy like Caddy/Traefik/nginx in
-  front of this stack, or a CDN) — browsers should never send credentials
-  over plain HTTP outside local dev
-- Don't publish the Postgres ports (`5432`/`5433`) to the host — they're only
-  exposed here for local debugging convenience
-- `spring.jpa.hibernate.ddl-auto: update` (used by both services) is
-  convenient for demos but isn't a real migration strategy — introducing
-  Flyway or Liquibase is the natural next step before this touches
-  production data
-- Restrict `management.endpoints.web.exposure` further or put actuator
-  behind auth if it's reachable from outside your network
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+### Backend requests return `401`
+
+Both backend services must use the same `JWT_SECRET`. In Docker Compose, both services receive this value from `.env`.
+
+### Frontend API requests fail or CORS errors appear
+
+Check that `FRONTEND_URL` in `.env` matches the URL used to access the frontend.
+
+If the frontend host port has been changed, update `FRONTEND_URL` and restart the backend services:
+
+```bash
+docker compose up -d user-service ticket-service
+```
+
+### Running a backend locally against Docker PostgreSQL
+
+The Docker Compose database ports are:
+
+| Database    | Host port |
+| ----------- | --------: |
+| `user-db`   |    `5432` |
+| `ticket-db` |    `5433` |
+
+The backend services' local `DATABASE_URL` fallbacks match these host ports.
+
+Run a service manually with:
+
+```bash
+./mvnw spring-boot:run
+```
+
+On Windows:
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+See the corresponding `README_RUN.md` for service-specific instructions.
+
+If the wrong database port is used, PostgreSQL may report:
+
+```text
+FATAL: database "ticket_db" does not exist
+```
+
+## Production considerations
+
+This Docker Compose configuration is intended primarily for local development and demo deployments.
+
+Before using the application with real production data:
+
+* Use a strong, unique `JWT_SECRET`.
+* Serve the frontend and APIs over HTTPS.
+* Avoid exposing PostgreSQL ports to the public network.
+* Replace `spring.jpa.hibernate.ddl-auto: update` with a dedicated database migration strategy such as Flyway or Liquibase.
+* Restrict or protect exposed Actuator management endpoints.
