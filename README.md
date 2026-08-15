@@ -53,6 +53,46 @@ keeping the communication between services explicit.
 | Deployment | Docker, Docker Compose, Nginx |
 | API documentation | OpenAPI / Swagger UI |
 | Testing | JUnit 5, Mockito |
+## Key features
+
+### Authentication and authorization
+
+- JWT-based authentication with Spring Security.
+- Three roles: `USER`, `AGENT`, and `ADMIN`.
+- Role-based access is enforced in the backend, not only in the frontend.
+- `user-service` is the only service that issues JWTs.
+
+### Ticket management
+
+- Create, edit, and view support tickets.
+- Priority and category tracking.
+- Strict ticket lifecycle:
+
+  `OPEN → IN_PROGRESS → RESOLVED → CLOSED`
+
+- Closed tickets are immutable.
+- Tickets can be assigned to support agents.
+- Comments are attached to individual tickets.
+
+### SLA tracking
+
+Tickets have an SLA based on their priority.
+
+The backend calculates the current SLA state when ticket data is requested:
+
+- `ON_TRACK`
+- `AT_RISK`
+- `BREACHED`
+
+The dashboard exposes the resulting statistics for the current user's role.
+
+### Role-based workflows
+
+| Role | Main capabilities |
+|---|---|
+| USER | Create tickets, view own tickets, comment, resolve own tickets |
+| AGENT | View assigned tickets, update status, comment |
+| ADMIN | View all tickets, assign agents, manage users, view system statistics |
 ## Quick start
 
 ### Option A — Docker Compose (fastest, whole stack)
